@@ -5,6 +5,7 @@ import com.myKcc.Event_Service.Dto.MembersDto;
 import com.myKcc.Event_Service.Entity.Event;
 import com.myKcc.Event_Service.Repository.EventRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
@@ -24,6 +25,10 @@ public class EventServiceImp implements EventService{
     @Autowired
     private EmailService emailService;
 
+
+ /*   public Event saveEvent(Event event){
+        return eventRepository.save(event);
+    }*/
 
     @Override
     public List<Event> getEventByTitle(String title) {
@@ -45,7 +50,7 @@ public class EventServiceImp implements EventService{
 
 
     @Override
-    public Event updateEvent(Long id, Event eventDetails) {
+    public Event updateEvent(Long id, Event eventDetails, String token) {
 
         Event event = eventRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException(""));
@@ -63,7 +68,7 @@ public class EventServiceImp implements EventService{
         Event updatedEvent = eventRepository.save(event);
 
         // Fetch all members from the external service
-        ApiResponseDto apiResponseDto = getAllMembers();
+        ApiResponseDto apiResponseDto = getAllMembers(token);
         List<MembersDto> membersDtoList = apiResponseDto.getMembersDtoList();
 
         // Collect all member emails
@@ -94,13 +99,14 @@ public class EventServiceImp implements EventService{
 
 
 
+
     @Override
-    public Event createEvent(Event event) {
+    public Event createEvent(Event event, String token) {
         // Save the event with the provided message
         Event savedEvent = eventRepository.save(event);
 
         // Fetch all members from the external service
-        ApiResponseDto apiResponseDto = getAllMembers();
+        ApiResponseDto apiResponseDto = getAllMembers(token);
         List<MembersDto> membersDtoList = apiResponseDto.getMembersDtoList();
 
         // Collect all member emails
@@ -108,40 +114,41 @@ public class EventServiceImp implements EventService{
                 .map(MembersDto::getEmail)
                 .collect(Collectors.toList());
 
-
-        emailService.eventNotification(
-                emails,
-                String.format("%s : %s that will take place at %s at %s for: %s for: %s",
-                        savedEvent.getMessage(),
-                        savedEvent.getTitle(),
-                        savedEvent.getEventLocation(),
-                        savedEvent.getEventTime(),
-                        savedEvent.getThePersonConcerned(),
-                        savedEvent.getDescription()
-
-                )
-        );
-
+        try {
+            emailService.eventNotification(
+                    emails,
+                    String.format("%s : %s that will take place at %s at %s for: %s for: %s",
+                            savedEvent.getMessage(),
+                            savedEvent.getTitle(),
+                            savedEvent.getEventLocation(),
+                            savedEvent.getEventTime(),
+                            savedEvent.getThePersonConcerned(),
+                            savedEvent.getDescription()
+                    )
+            );
+        } catch (Exception e) {
+            System.err.println("Error sending email: " + e.getMessage());
+            e.printStackTrace();
+            // Optionally, log the error to avoid crashing the entire request
+        }
 
         return savedEvent;
     }
 
-    @Override
-    public ApiResponseDto getAllMembers() {
 
+    @Override
+    public ApiResponseDto getAllMembers(String token) {
         Mono<List<MembersDto>> listMono = webClient.get()
-                .uri("https://strong-alignment-production.up.railway.app/api/v1/members")
+                .uri("https://distinguished-education-production.up.railway.app/api/v1/members")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                 .retrieve()
                 .bodyToFlux(MembersDto.class)
                 .collectList();
 
-
-        List<MembersDto>membersDtoList = listMono.block();
+        List<MembersDto> membersDtoList = listMono.block();
 
         ApiResponseDto apiResponseDto = new ApiResponseDto();
-
         apiResponseDto.setMembersDtoList(membersDtoList);
-
         return apiResponseDto;
     }
 

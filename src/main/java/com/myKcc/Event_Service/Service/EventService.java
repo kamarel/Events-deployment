@@ -11,12 +11,11 @@ public interface EventService {
     List<Event>getEventByTitle(String title);
     List<Event>getAllEvents();
     Event getEventById(Long id);
-    Event createEvent(Event event);
-    Event updateEvent(Long id, Event eventDetails);
+    Event createEvent(Event event, String token);
+    Event updateEvent(Long id, Event eventDetails, String token);
     void deleteEventById(Long id);
     List<Event>searchEvent(String query);
     void deleteAllEvent();
-    ApiResponseDto getAllMembers();
-
+    ApiResponseDto getAllMembers(String token);
 
 }

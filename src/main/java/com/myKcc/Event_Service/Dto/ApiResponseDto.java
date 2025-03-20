@@ -12,5 +12,16 @@ import java.util.List;
 @NoArgsConstructor
 public class ApiResponseDto {
 
+
     private List<MembersDto> membersDtoList;
+
+
+
+    public List<MembersDto> getMembersDtoList() {
+        return membersDtoList;
+    }
+
+    public void setMembersDtoList(List<MembersDto> membersDtoList) {
+        this.membersDtoList = membersDtoList;
+    }
 }
