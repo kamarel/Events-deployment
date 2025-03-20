@@ -129,7 +129,7 @@ public class EventServiceImp implements EventService{
 
         try {
             emailService.eventNotification(
-                    (Map<String, String>) filteredEmails, // Pass list of emails
+                    filteredEmails, // Pass list of emails
                     String.format("%s : %s that will take place at %s at %s for: %s for: %s",
                             savedEvent.getMessage(),
                             savedEvent.getTitle(),
