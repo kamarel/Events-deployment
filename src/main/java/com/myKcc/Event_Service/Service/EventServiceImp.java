@@ -122,13 +122,14 @@ public class EventServiceImp implements EventService{
         savedEvent.setThePersonConcerned(thePersonConcerned);
 
         // Filter members to only include those with the same rank as `thePersonConcerned`
-        Map<String, String> emailToRankMap = membersDtoList.stream()
+        List<String> filteredEmails = membersDtoList.stream()
                 .filter(member -> thePersonConcerned.equals(member.getMemberRank())) // Filter by rank
-                .collect(Collectors.toMap(MembersDto::getEmail, MembersDto::getMemberRank));
+                .map(MembersDto::getEmail) // Extract emails
+                .collect(Collectors.toList()); // Collect as a list
 
         try {
             emailService.eventNotification(
-                    emailToRankMap,
+                    (Map<String, String>) filteredEmails, // Pass list of emails
                     String.format("%s : %s that will take place at %s at %s for: %s for: %s",
                             savedEvent.getMessage(),
                             savedEvent.getTitle(),
@@ -145,6 +146,7 @@ public class EventServiceImp implements EventService{
 
         return savedEvent;
     }
+
 
 
 
