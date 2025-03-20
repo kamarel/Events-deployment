@@ -111,62 +111,40 @@ public class EventServiceImp implements EventService{
         ApiResponseDto apiResponseDto = getAllMembers(token);
         List<MembersDto> membersDtoList = apiResponseDto.getMembersDtoList();
 
-        if (membersDtoList.isEmpty()) {
-            System.out.println("No members found from API.");
-            return savedEvent;
-        }
+        // Collect member emails and ranks
+        Map<String, String> emailToRankMap = membersDtoList.stream()
+                .collect(Collectors.toMap(MembersDto::getEmail, MembersDto::getMemberRank));
 
-        // 🔹 Determine the most frequent rank in the list
-        Map<String, Long> rankFrequency = membersDtoList.stream()
-                .filter(member -> member.getMemberRank() != null)
-                .collect(Collectors.groupingBy(MembersDto::getMemberRank, Collectors.counting()));
+        // Determine the person concerned based on member rank
+        String thePersonConcerned = membersDtoList.stream()
+                .map(MembersDto::getMemberRank)
+                .filter(Objects::nonNull)
+                .findFirst() // Get the first available rank
+                .orElse("Unknown"); // Default value if no rank is found
 
-        // 🔹 Find the most common rank (or default to the first found)
-        String mostRelevantRank = rankFrequency.entrySet().stream()
-                .max(Map.Entry.comparingByValue()) // Pick the rank that appears the most
-                .map(Map.Entry::getKey)
-                .orElse(membersDtoList.get(0).getMemberRank()); // Default to first found rank
+        // Update the event with the concerned person
+        savedEvent.setThePersonConcerned(thePersonConcerned);
 
-        // Set the `thePersonConcerned` in the Event entity to the most relevant member rank
-        savedEvent.setThePersonConcerned(mostRelevantRank);
-
-        // Update the event with the selected rank
-        savedEvent = eventRepository.save(savedEvent); // Save the updated event with the rank
-
-        // 🔹 Filter members who have the same rank
-        List<String> emails = membersDtoList.stream()
-                .filter(member -> mostRelevantRank.equals(member.getMemberRank())) // Match rank
-                .map(MembersDto::getEmail)
-                .distinct() // Ensure no duplicate emails
-                .collect(Collectors.toList());
-
-        // Debugging output
-        System.out.println("Selected Rank: " + mostRelevantRank);
-        System.out.println("Emails to notify: " + emails);
-
-        if (!emails.isEmpty()) {
-            try {
-                emailService.eventNotification(
-                        emails,
-                        String.format("%s : %s that will take place at %s at %s for: %s for: %s",
-                                savedEvent.getMessage(),
-                                savedEvent.getTitle(),
-                                savedEvent.getEventLocation(),
-                                savedEvent.getEventTime(),
-                                mostRelevantRank, // Automatically selected rank
-                                savedEvent.getDescription()
-                        )
-                );
-            } catch (Exception e) {
-                System.err.println("Error sending email: " + e.getMessage());
-                e.printStackTrace();
-            }
-        } else {
-            System.out.println("No members found with rank: " + mostRelevantRank);
+        try {
+            emailService.eventNotification(
+                    emailToRankMap,
+                    String.format("%s : %s that will take place at %s at %s for: %s for: %s",
+                            savedEvent.getMessage(),
+                            savedEvent.getTitle(),
+                            savedEvent.getEventLocation(),
+                            savedEvent.getEventTime(),
+                            savedEvent.getThePersonConcerned(), // Now holds the first found memberRank
+                            savedEvent.getDescription()
+                    )
+            );
+        } catch (Exception e) {
+            System.err.println("Error sending email: " + e.getMessage());
+            e.printStackTrace();
         }
 
         return savedEvent;
     }
+
 
 
 
