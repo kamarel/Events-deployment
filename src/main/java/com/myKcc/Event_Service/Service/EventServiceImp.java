@@ -111,25 +111,35 @@ public class EventServiceImp implements EventService{
         ApiResponseDto apiResponseDto = getAllMembers(token);
         List<MembersDto> membersDtoList = apiResponseDto.getMembersDtoList();
 
-        // Determine the most relevant rank (you can change this logic as needed)
-        String mostRelevantRank = membersDtoList.stream()
-                .map(MembersDto::getMemberRank)
-                .filter(Objects::nonNull)
-                .findFirst() // Picks the first available rank
-                .orElse("Unknown"); // Default value if no rank is found
+        if (membersDtoList.isEmpty()) {
+            System.out.println("No members found from API.");
+            return savedEvent;
+        }
 
-        // Update the event with the determined rank
+        // 🔹 Determine the most frequent rank in the list
+        Map<String, Long> rankFrequency = membersDtoList.stream()
+                .filter(member -> member.getMemberRank() != null)
+                .collect(Collectors.groupingBy(MembersDto::getMemberRank, Collectors.counting()));
+
+        // 🔹 Find the most common rank (or default to the first found)
+        String mostRelevantRank = rankFrequency.entrySet().stream()
+                .max(Map.Entry.comparingByValue()) // Pick the rank that appears the most
+                .map(Map.Entry::getKey)
+                .orElse(membersDtoList.get(0).getMemberRank()); // Default to first found rank
+
+        // Update the event with the selected rank
         savedEvent.setThePersonConcerned(mostRelevantRank);
 
-        // Filter members by the determined rank
+        // 🔹 Filter members who have the same rank
         List<String> emails = membersDtoList.stream()
-                .filter(member -> mostRelevantRank.equals(member.getMemberRank())) // Only members with this rank
+                .filter(member -> mostRelevantRank.equals(member.getMemberRank())) // Match rank
                 .map(MembersDto::getEmail)
+                .distinct() // Ensure no duplicate emails
                 .collect(Collectors.toList());
 
-        // Debug: Check which emails will be sent
-        System.out.println("Sending email to members with rank: " + mostRelevantRank);
-        System.out.println("Emails: " + emails);
+        // Debugging output
+        System.out.println("Selected Rank: " + mostRelevantRank);
+        System.out.println("Emails to notify: " + emails);
 
         if (!emails.isEmpty()) {
             try {
@@ -154,6 +164,7 @@ public class EventServiceImp implements EventService{
 
         return savedEvent;
     }
+
 
 
 
