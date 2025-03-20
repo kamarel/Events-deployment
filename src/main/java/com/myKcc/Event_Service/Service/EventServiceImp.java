@@ -12,6 +12,8 @@ import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -77,7 +79,7 @@ public class EventServiceImp implements EventService{
                 .collect(Collectors.toList());
 
 
-        emailService.eventNotification(emails, updatedEvent.getMessage() + " " + "Type" + " " + updatedEvent.getTitle() + " " + "because of" + event.getDescription());
+        emailService.eventNotifications(emails, updatedEvent.getMessage() + " " + "Type" + " " + updatedEvent.getTitle() + " " + "because of" + event.getDescription());
 
         return updatedEvent;
     }
@@ -109,31 +111,44 @@ public class EventServiceImp implements EventService{
         ApiResponseDto apiResponseDto = getAllMembers(token);
         List<MembersDto> membersDtoList = apiResponseDto.getMembersDtoList();
 
-        // Collect all member emails
-        List<String> emails = membersDtoList.stream()
-                .map(MembersDto::getEmail)
-                .collect(Collectors.toList());
+        // Determine the person concerned based on member rank
+        String thePersonConcerned = membersDtoList.stream()
+                .map(MembersDto::getMemberRank)
+                .filter(Objects::nonNull)
+                .findFirst() // Get the first available rank
+                .orElse("Unknown"); // Default value if no rank is found
+
+        // Update the event with the concerned person
+        savedEvent.setThePersonConcerned(thePersonConcerned);
+
+        // Filter members to only include those with the same rank as `thePersonConcerned`
+        Map<String, String> emailToRankMap = membersDtoList.stream()
+                .filter(member -> thePersonConcerned.equals(member.getMemberRank())) // Filter by rank
+                .collect(Collectors.toMap(MembersDto::getEmail, MembersDto::getMemberRank));
 
         try {
             emailService.eventNotification(
-                    emails,
+                    emailToRankMap,
                     String.format("%s : %s that will take place at %s at %s for: %s for: %s",
                             savedEvent.getMessage(),
                             savedEvent.getTitle(),
                             savedEvent.getEventLocation(),
                             savedEvent.getEventTime(),
-                            savedEvent.getThePersonConcerned(),
+                            savedEvent.getThePersonConcerned(), // The selected member rank
                             savedEvent.getDescription()
                     )
             );
         } catch (Exception e) {
             System.err.println("Error sending email: " + e.getMessage());
             e.printStackTrace();
-            // Optionally, log the error to avoid crashing the entire request
         }
 
         return savedEvent;
     }
+
+
+
+
 
 
     @Override
