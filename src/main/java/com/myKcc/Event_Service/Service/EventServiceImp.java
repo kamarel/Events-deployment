@@ -111,6 +111,12 @@ public class EventServiceImp implements EventService{
         ApiResponseDto apiResponseDto = getAllMembers(token);
         List<MembersDto> membersDtoList = apiResponseDto.getMembersDtoList();
 
+        // Debug: Print all members
+        System.out.println("Fetching all members...");
+        for (MembersDto member : membersDtoList) {
+            System.out.println("Email: " + member.getEmail() + " | Rank: " + member.getMemberRank());
+        }
+
         // Determine the person concerned based on member rank
         String thePersonConcerned = membersDtoList.stream()
                 .map(MembersDto::getMemberRank)
@@ -118,14 +124,20 @@ public class EventServiceImp implements EventService{
                 .findFirst() // Get the first available rank
                 .orElse("Unknown"); // Default value if no rank is found
 
-        // Update the event with the concerned person
-        savedEvent.setThePersonConcerned(thePersonConcerned);
+        // Debug: Print the selected rank
+        System.out.println("The person concerned (rank): " + thePersonConcerned);
 
         // Filter members to only include those with the same rank as `thePersonConcerned`
         List<String> filteredEmails = membersDtoList.stream()
                 .filter(member -> thePersonConcerned.equals(member.getMemberRank())) // Filter by rank
                 .map(MembersDto::getEmail) // Extract emails
                 .collect(Collectors.toList()); // Collect as a list
+
+        // Debug: Print filtered emails
+        System.out.println("Filtered emails to notify:");
+        for (String email : filteredEmails) {
+            System.out.println(email);
+        }
 
         try {
             emailService.eventNotification(
