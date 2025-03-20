@@ -127,8 +127,11 @@ public class EventServiceImp implements EventService{
                 .map(Map.Entry::getKey)
                 .orElse(membersDtoList.get(0).getMemberRank()); // Default to first found rank
 
-        // Update the event with the selected rank
+        // Set the `thePersonConcerned` in the Event entity to the most relevant member rank
         savedEvent.setThePersonConcerned(mostRelevantRank);
+
+        // Update the event with the selected rank
+        savedEvent = eventRepository.save(savedEvent); // Save the updated event with the rank
 
         // 🔹 Filter members who have the same rank
         List<String> emails = membersDtoList.stream()
@@ -164,6 +167,7 @@ public class EventServiceImp implements EventService{
 
         return savedEvent;
     }
+
 
 
 
