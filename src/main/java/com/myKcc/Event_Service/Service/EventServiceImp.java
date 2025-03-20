@@ -111,53 +111,51 @@ public class EventServiceImp implements EventService{
         ApiResponseDto apiResponseDto = getAllMembers(token);
         List<MembersDto> membersDtoList = apiResponseDto.getMembersDtoList();
 
-        // Debug: Print all members
-        System.out.println("Fetching all members...");
-        for (MembersDto member : membersDtoList) {
-            System.out.println("Email: " + member.getEmail() + " | Rank: " + member.getMemberRank());
-        }
-
-        // Determine the person concerned based on member rank
-        String thePersonConcerned = membersDtoList.stream()
+        // Determine the most relevant rank (you can change this logic as needed)
+        String mostRelevantRank = membersDtoList.stream()
                 .map(MembersDto::getMemberRank)
                 .filter(Objects::nonNull)
-                .findFirst() // Get the first available rank
+                .findFirst() // Picks the first available rank
                 .orElse("Unknown"); // Default value if no rank is found
 
-        // Debug: Print the selected rank
-        System.out.println("The person concerned (rank): " + thePersonConcerned);
+        // Update the event with the determined rank
+        savedEvent.setThePersonConcerned(mostRelevantRank);
 
-        // Filter members to only include those with the same rank as `thePersonConcerned`
-        List<String> filteredEmails = membersDtoList.stream()
-                .filter(member -> thePersonConcerned.equals(member.getMemberRank())) // Filter by rank
-                .map(MembersDto::getEmail) // Extract emails
-                .collect(Collectors.toList()); // Collect as a list
+        // Filter members by the determined rank
+        List<String> emails = membersDtoList.stream()
+                .filter(member -> mostRelevantRank.equals(member.getMemberRank())) // Only members with this rank
+                .map(MembersDto::getEmail)
+                .collect(Collectors.toList());
 
-        // Debug: Print filtered emails
-        System.out.println("Filtered emails to notify:");
-        for (String email : filteredEmails) {
-            System.out.println(email);
-        }
+        // Debug: Check which emails will be sent
+        System.out.println("Sending email to members with rank: " + mostRelevantRank);
+        System.out.println("Emails: " + emails);
 
-        try {
-            emailService.eventNotification(
-                    filteredEmails, // Pass list of emails
-                    String.format("%s : %s that will take place at %s at %s for: %s for: %s",
-                            savedEvent.getMessage(),
-                            savedEvent.getTitle(),
-                            savedEvent.getEventLocation(),
-                            savedEvent.getEventTime(),
-                            savedEvent.getThePersonConcerned(), // The selected member rank
-                            savedEvent.getDescription()
-                    )
-            );
-        } catch (Exception e) {
-            System.err.println("Error sending email: " + e.getMessage());
-            e.printStackTrace();
+        if (!emails.isEmpty()) {
+            try {
+                emailService.eventNotification(
+                        emails,
+                        String.format("%s : %s that will take place at %s at %s for: %s for: %s",
+                                savedEvent.getMessage(),
+                                savedEvent.getTitle(),
+                                savedEvent.getEventLocation(),
+                                savedEvent.getEventTime(),
+                                mostRelevantRank, // Automatically selected rank
+                                savedEvent.getDescription()
+                        )
+                );
+            } catch (Exception e) {
+                System.err.println("Error sending email: " + e.getMessage());
+                e.printStackTrace();
+            }
+        } else {
+            System.out.println("No members found with rank: " + mostRelevantRank);
         }
 
         return savedEvent;
     }
+
+
 
 
 
